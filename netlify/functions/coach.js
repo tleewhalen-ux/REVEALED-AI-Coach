@@ -58,14 +58,32 @@ exports.handler = async (event) => {
     // Fetch the latest author notes fresh for this request.
     const authorNotes = await fetchAuthorNotes();
 
-    // Append citations.txt and author-notes.txt (if present) to whatever
-    // system prompt coach.html sent, so they're always the last, most-recent word.
-    let fullSystem = system;
+    // STABLE block: coach.html's system prompt + citations.txt. This almost
+    // never changes between requests, so it's marked cacheable. Anthropic
+    // caches this block for ~5 minutes; repeat requests within that window
+    // are billed at a fraction of normal input-token cost for this portion.
+    let stableSystem = system;
     if (citationSources) {
-      fullSystem += '\n\nEXTERNAL SOURCE BIBLIOGRAPHY (real sources cited in the book — you may name these when relevant, but never reproduce their text, only attribute to them):\n' + citationSources;
+      stableSystem += '\n\nEXTERNAL SOURCE BIBLIOGRAPHY (real sources cited in the book — you may name these when relevant, but never reproduce their text, only attribute to them):\n' + citationSources;
     }
+
+    // Build the system parameter as an array of content blocks. Only the
+    // stable block gets cache_control — author notes are deliberately left
+    // OUT of the cached block so live edits on GitHub still take effect on
+    // the very next message, exactly as before.
+    const systemBlocks = [
+      {
+        type: 'text',
+        text: stableSystem,
+        cache_control: { type: 'ephemeral' }
+      }
+    ];
+
     if (authorNotes) {
-      fullSystem += '\n\nADDITIONAL AUTHOR NOTES (treat these as authoritative, up-to-date guidance from Terry — follow them even if they refine or add to anything above):\n' + authorNotes;
+      systemBlocks.push({
+        type: 'text',
+        text: 'ADDITIONAL AUTHOR NOTES (treat these as authoritative, up-to-date guidance from Terry — follow them even if they refine or add to anything above):\n' + authorNotes
+      });
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -78,7 +96,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 2000,
-        system: fullSystem,
+        system: systemBlocks,
         messages: messages
       })
     });
