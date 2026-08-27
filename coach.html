@@ -1439,4 +1439,36 @@ Rules you always follow:
       messageUIModes.push(currentMode);
       saveSession();
       if(currentMode === 'socratic') updateBeam(reply);
->
+      speak(reply);
+    } catch(err){
+      setTyping(false);
+      addMessage('coach', "⚠️ Connection error: " + err.message);
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  document.getElementById('sc-chips').addEventListener('click', function(e){
+    const chip = e.target.closest('.sc-chip');
+    if(!chip) return;
+    input.value = chip.dataset.q;
+    send();
+  });
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', function(e){
+    clearAutoSend();
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      send();
+    }
+  });
+  input.addEventListener('input', function(){
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+})();
+</script>
+
