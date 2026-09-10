@@ -1,1 +1,1474 @@
+<!-- Socratic Coach: an AI dialogue guide for exploring science-vs-God questions -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#12151f;
+    --ink-2:#1a1f2e;
+    --parchment:#ede6d6;
+    --evidence:#4f8f88;   /* teal — science/evidence pole */
+    --meaning:#c9932a;    /* brass — meaning/faith pole */
+    --text-hi:#f2efe6;
+    --text-lo:#a8a79c;
+    --line:#2c3244;
+  }
+
+  *{box-sizing:border-box;}
+
+  /* ---- Light theme: warm parchment ---- */
+  .sc-root[data-theme="light"]{
+    --ink:#f7f3e8;
+    --ink-2:#eee6d2;
+    --parchment:#211c10;
+    --evidence:#2f6f68;
+    --meaning:#9c6a13;
+    --text-hi:#1c1a13;
+    --text-lo:#615c4a;
+    --line:#d9d0b8;
+  }
+
+  /* ---- White theme: high-contrast black on white ---- */
+  .sc-root[data-theme="white"]{
+    --ink:#ffffff;
+    --ink-2:#f2f2f0;
+    --parchment:#111111;
+    --evidence:#1f6b63;
+    --meaning:#8a5c00;
+    --text-hi:#0a0a0a;
+    --text-lo:#4a4a4a;
+    --line:#dcdcdc;
+  }
+
+  /* ---- Font-size scale: everything below is in em, relative to this ---- */
+  .sc-root[data-fontsize="sm"]{ font-size:16px; }
+  .sc-root[data-fontsize="md"]{ font-size:18px; }
+  .sc-root[data-fontsize="lg"]{ font-size:20px; }
+  .sc-root[data-fontsize="xl"]{ font-size:22px; }
+
+  /* ---- Reading font toggle ---- */
+  .sc-root[data-font="sans"] .sc-title,
+  .sc-root[data-font="sans"] .sc-msg.coach .sc-body,
+  .sc-root[data-font="sans"] .sc-q-mark{
+    font-family:'Inter',sans-serif;
+    font-style:normal;
+  }
+
+  .sc-root{
+    background:var(--ink);
+    color:var(--text-hi);
+    font-family:'Inter',sans-serif;
+    min-height:100%;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    max-width:1300px;
+    margin:0 auto;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    transition:background 0.25s ease, color 0.25s ease;
+  }
+
+  /* ---- Header + Balance beam signature element ---- */
+  .sc-header{
+    padding:28px 28px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .sc-eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.8125em;
+    letter-spacing:0.14em;
+    color:var(--text-lo);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .sc-title{
+    font-family:'Source Serif 4',serif;
+    font-size:2em;
+    font-weight:600;
+    margin:0 0 4px;
+    color:var(--parchment);
+  }
+  .sc-sub{
+    font-size:1em;
+    font-weight:500;
+    color:var(--text-lo);
+    margin:0 0 20px;
+    line-height:1.55;
+  }
+
+  .sc-beam-wrap{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .sc-pole{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    width:64px;
+    flex-shrink:0;
+  }
+  .sc-pole.left{color:var(--evidence); text-align:right;}
+  .sc-pole.right{color:var(--meaning); text-align:left;}
+
+  .sc-beam-svg{flex:1; overflow:visible;}
+  .sc-fulcrum-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    fill:var(--text-lo);
+    letter-spacing:0.08em;
+  }
+
+  /* ---- Toolbar: theme / font / listen controls ---- */
+  .sc-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:16px;
+    padding:12px 14px;
+    background:var(--ink-2);
+    border:1.5px solid var(--evidence);
+    border-radius:12px;
+  }
+  .sc-tool-btn{
+    background:var(--ink-2);
+    border:1.5px solid var(--evidence);
+    color:var(--text-hi);
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.8125em;
+    font-weight:500;
+    letter-spacing:0.04em;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s, background 0.15s;
+    white-space:nowrap;
+  }
+  .sc-tool-btn:hover{ border-color:var(--meaning); color:var(--parchment); }
+  .sc-tool-btn.active{
+    border-color:var(--evidence);
+    color:var(--ink);
+    background:var(--evidence);
+    font-weight:600;
+  }
+  .sc-theme-group .sc-tool-btn.active{
+    border-color:var(--meaning);
+    color:var(--ink);
+    background:var(--meaning);
+    font-weight:600;
+  }
+  .sc-tool-btn:disabled{ opacity:0.35; cursor:default; }
+  .sc-tool-btn:disabled:hover{ border-color:var(--line); color:var(--text-lo); }
+
+  .sc-theme-group{
+    display:flex;
+    align-items:center;
+    gap:3px;
+    background:var(--ink);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:3px;
+  }
+  .sc-theme-group .sc-tool-btn{
+    background:transparent;
+    border:none;
+  }
+
+  .sc-font-group{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background:var(--ink);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:3px;
+  }
+  .sc-font-group .sc-tool-btn{
+    background:transparent;
+    border:none;
+    padding:6px 9px;
+  }
+  .sc-font-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.8125em;
+    color:var(--text-hi);
+    width:18px;
+    text-align:center;
+  }
+
+  /* ---- Mode toggle ---- */
+  .sc-toolbar-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.75em;
+    font-weight:600;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-hi);
+    margin-right:2px;
+  }
+
+  .sc-root[data-mode="practical"] .sc-beam-wrap{ display:none; }
+
+  /* ---- Practical-mode message styling: structured, not italic dialogue ---- */
+  .sc-msg.coach.practical .sc-q-mark{
+    color:var(--evidence);
+    font-style:normal;
+    font-family:'JetBrains Mono',monospace;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    font-size:0.6875em;
+  }
+  .sc-msg.coach.practical .sc-body{
+    font-family:'Inter',sans-serif;
+    font-style:normal;
+    font-size:0.9375em;
+    line-height:1.65;
+  }
+  .sc-msg.coach.practical .sc-body h4{
+    font-family:'Source Serif 4',serif;
+    color:var(--parchment);
+    font-size:1.1em;
+    margin:0.9em 0 0.35em;
+  }
+  .sc-msg.coach.practical .sc-body h4:first-child{ margin-top:0; }
+  .sc-msg.coach.practical .sc-body strong{ color:var(--parchment); font-weight:600; }
+  .sc-msg.coach.practical .sc-body ul,
+  .sc-msg.coach.practical .sc-body ol{
+    margin:0.4em 0 0.6em 1.2em;
+    padding:0;
+  }
+  .sc-msg.coach.practical .sc-body li{ margin-bottom:0.35em; }
+  .sc-msg.coach.practical .sc-body p{ margin:0 0 0.6em; }
+  .sc-msg.coach.practical .sc-body p:last-child{ margin-bottom:0; }
+
+  .sc-msg-actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .sc-action-btn{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.625em;
+    letter-spacing:0.04em;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--text-lo);
+    padding:5px 10px;
+    border-radius:5px;
+    cursor:pointer;
+  }
+  .sc-action-btn:hover{ border-color:var(--meaning); color:var(--parchment); }
+  .sc-action-btn.done{ border-color:var(--evidence); color:var(--evidence); }
+
+  /* ---- Mode-switch divider ---- */
+  .sc-mode-divider{
+    align-self:center;
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.625em;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-lo);
+    padding:2px 10px;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+
+  /* ---- Welcome back banner ---- */
+  .sc-welcome-back{
+    display:none;
+    margin:16px 28px 0;
+    padding:14px 16px;
+    background:var(--ink-2);
+    border:1px solid var(--meaning);
+    border-radius:8px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .sc-welcome-back.visible{ display:flex; }
+  .sc-welcome-back p{
+    font-size:1em;
+    font-weight:500;
+    color:var(--text-hi);
+    margin:0;
+  }
+  .sc-welcome-back .sc-wb-actions{ display:flex; gap:8px; flex-shrink:0; }
+  .sc-wb-btn{
+    font-family:'Inter',sans-serif;
+    font-size:0.75em;
+    font-weight:600;
+    padding:7px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--text-lo);
+  }
+  .sc-wb-btn.primary{
+    background:var(--meaning);
+    color:var(--ink);
+    border-color:var(--meaning);
+  }
+
+  /* ---- Onboarding: asked once, before anything else ---- */
+  .sc-onboarding{
+    display:none;
+    margin:0 auto 20px;
+    padding:16px 18px;
+    background:var(--ink-2);
+    border:1px solid var(--evidence);
+    border-radius:8px;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    width:fit-content;
+    max-width:100%;
+  }
+  .sc-onboarding.visible{ display:flex; }
+  .sc-onboarding p{
+    font-family:'Source Serif 4',serif;
+    font-size:0.95em;
+    color:var(--text-hi);
+    margin:0;
+    text-align:center;
+  }
+  .sc-onboarding-actions{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  .sc-onboarding-btn{
+    font-family:'Inter',sans-serif;
+    font-size:0.75em;
+    font-weight:600;
+    padding:8px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    border:1px solid var(--evidence);
+    background:transparent;
+    color:var(--evidence);
+    transition:background 0.15s, color 0.15s;
+  }
+  .sc-onboarding-btn:hover{
+    background:var(--evidence);
+    color:var(--ink);
+  }
+
+  /* ---- Starter chips ---- */
+  .sc-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:16px 28px 4px;
+  }
+  .sc-chip{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--text-lo);
+    font-family:'Inter',sans-serif;
+    font-size:0.9375em;
+    font-weight:500;
+    padding:9px 15px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s;
+  }
+  .sc-chip:hover{border-color:var(--meaning); color:var(--parchment);}
+
+  /* ---- Conversation menu ---- */
+  .sc-conv-menu-wrap{ position:relative; flex-basis:100%; display:flex; justify-content:center; margin-top:4px; }
+  .sc-conv-menu{
+    display:none;
+    position:absolute;
+    top:calc(100% + 6px);
+    left:50%;
+    transform:translateX(-50%);
+    min-width:210px;
+    background:var(--ink-2);
+    border:1.5px solid var(--evidence);
+    border-radius:10px;
+    padding:6px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+    z-index:50;
+  }
+  .sc-conv-menu.open{ display:block; }
+  .sc-conv-menu-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:transparent;
+    border:none;
+    color:var(--text-hi);
+    font-family:'Inter',sans-serif;
+    font-size:0.875em;
+    font-weight:500;
+    padding:9px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:background 0.12s;
+  }
+  .sc-conv-menu-item:hover{ background:var(--ink); color:var(--parchment); }
+  .sc-conv-menu-item.danger{ color:#e0716a; }
+  .sc-conv-menu-item.danger:hover{ background:rgba(224,113,106,0.12); color:#e0716a; }
+  .sc-conv-menu-item.done{ color:var(--evidence); }
+  .sc-conv-menu-divider{ height:1px; background:var(--line); margin:6px 4px; }
+
+  /* ---- Conversation ---- */
+  .sc-thread{
+    flex:1;
+    padding:24px 28px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    min-height:340px;
+  }
+
+  .sc-msg{
+    max-width:min(88%, 980px);
+    line-height:1.55;
+  }
+  .sc-msg.user{
+    align-self:flex-end;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:10px 10px 2px 10px;
+    padding:11px 15px;
+    font-size:1.0625em;
+    font-weight:500;
+    color:var(--text-hi);
+  }
+  .sc-msg.coach{
+    align-self:flex-start;
+  }
+  .sc-msg.coach .sc-q-mark{
+    font-family:'Source Serif 4',serif;
+    font-style:italic;
+    color:var(--meaning);
+    font-size:0.9375em;
+    display:block;
+    margin-bottom:4px;
+    letter-spacing:0.02em;
+  }
+  .sc-msg.coach .sc-body{
+    font-family:'Source Serif 4',serif;
+    font-size:1.25em;
+    font-weight:500;
+    color:var(--parchment);
+    font-style:normal;
+    line-height:1.75;
+  }
+
+  .sc-empty{
+    color:var(--text-lo);
+    font-size:1.0625em;
+    font-weight:500;
+    line-height:1.7;
+    padding-top:6px;
+  }
+  .sc-empty b{color:var(--text-hi); font-weight:500;}
+
+  .sc-typing{
+    align-self:flex-start;
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.6875em;
+    color:var(--text-lo);
+    letter-spacing:0.05em;
+  }
+
+  /* ---- Input ---- */
+  .sc-inputbar{
+    border-top:1px solid var(--line);
+    padding:16px 20px;
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+  }
+  .sc-input{
+    flex:1;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--text-hi);
+    font-family:'Inter',sans-serif;
+    font-size:0.875em;
+    padding:11px 13px;
+    resize:none;
+    outline:none;
+    min-height:42px;
+    max-height:120px;
+  }
+  .sc-input:focus{border-color:var(--evidence);}
+  .sc-input.sc-input-pending{
+    border-color:var(--meaning);
+    animation:sc-pulse 1.3s ease-out 1;
+  }
+  .sc-autosend-bar{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    padding:6px 20px;
+    background:var(--ink-2);
+    border-top:1px solid var(--line);
+  }
+  .sc-autosend-bar.visible{ display:flex; }
+  .sc-autosend-text{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.6875em;
+    letter-spacing:0.03em;
+    color:var(--meaning);
+  }
+  .sc-autosend-cancel-btn{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.625em;
+    letter-spacing:0.04em;
+    background:transparent;
+    border:1px solid var(--meaning);
+    color:var(--meaning);
+    padding:3px 10px;
+    border-radius:5px;
+    cursor:pointer;
+  }
+  .sc-autosend-cancel-btn:hover{ background:var(--meaning); color:var(--ink); }
+  .sc-input::placeholder{color:var(--text-lo);}
+
+  .sc-mic{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--text-lo);
+    border-radius:8px;
+    width:42px;
+    height:42px;
+    flex-shrink:0;
+    cursor:pointer;
+    font-size:1.05em;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .sc-mic:hover{ border-color:var(--evidence); color:var(--evidence); }
+  .sc-mic.recording{
+    background:var(--meaning);
+    color:var(--ink);
+    border-color:var(--meaning);
+    animation:sc-pulse 1.1s infinite;
+  }
+  .sc-mic:disabled{ opacity:0.35; cursor:default; }
+  .sc-mic:disabled:hover{ border-color:var(--line); color:var(--text-lo); }
+  @keyframes sc-pulse{ 0%,100%{opacity:1;} 50%{opacity:0.55;} }
+
+  .sc-send{
+    background:var(--meaning);
+    color:var(--ink);
+    border:none;
+    border-radius:8px;
+    padding:11px 16px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:0.8125em;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .sc-send:disabled{opacity:0.4; cursor:default;}
+  .sc-send:hover:not(:disabled){filter:brightness(1.08);}
+
+  .sc-foot{
+    text-align:center;
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.59375em;
+    color:var(--text-lo);
+    letter-spacing:0.05em;
+    padding:10px 20px 18px;
+  }
+</style>
+
+<div class="sc-root">
+  <div class="sc-header">
+    <div class="sc-eyebrow">Reader companion for REVEALED</div>
+    <h1 class="sc-title" id="sc-coach-title">The Socratic Coach</h1>
+    <p class="sc-sub" id="sc-coach-sub">A gentle companion for the questions REVEALED raises — walking alongside readers from evidence toward meaning, at their own pace, toward the God who's been there all along.</p>
+
+    <div class="sc-onboarding" id="sc-onboarding">
+      <p>Before we dive in — how are you coming to this book?</p>
+      <div class="sc-onboarding-actions">
+        <button class="sc-onboarding-btn" data-onboarding="skeptic">I'm skeptical</button>
+        <button class="sc-onboarding-btn" data-onboarding="seeker">Curious, not sure yet</button>
+        <button class="sc-onboarding-btn" data-onboarding="believer">I already believe</button>
+      </div>
+    </div>
+
+    <div class="sc-beam-wrap">
+      <div class="sc-pole left">Evidence</div>
+      <svg class="sc-beam-svg" viewBox="0 0 300 40" height="40">
+        <line x1="150" y1="8" x2="150" y2="20" stroke="#555b6e" stroke-width="1.5"/>
+        <g id="sc-beam-g" style="transform-origin:150px 8px; transition: transform 0.6s ease;">
+          <line x1="20" y1="8" x2="280" y2="8" stroke="#555b6e" stroke-width="1.5"/>
+          <circle id="sc-dot-left" cx="20" cy="8" r="5" fill="var(--evidence)"/>
+          <circle id="sc-dot-right" cx="280" cy="8" r="5" fill="var(--meaning)"/>
+        </g>
+        <circle cx="150" cy="20" r="2.5" fill="#555b6e"/>
+        <text x="150" y="34" text-anchor="middle" class="sc-fulcrum-label">where the conversation is leaning</text>
+      </svg>
+      <div class="sc-pole right">Meaning</div>
+    </div>
+
+    <div class="sc-toolbar">
+      <span class="sc-toolbar-label">Mode</span>
+      <div class="sc-theme-group" id="sc-mode-group">
+        <button class="sc-tool-btn" data-mode-choice="socratic" title="Socratic dialogue — one question at a time">Socratic</button>
+        <button class="sc-tool-btn" data-mode-choice="practical" title="Practical — study guides, outlines, discussion questions">Practical</button>
+      </div>
+      <div class="sc-theme-group">
+        <button class="sc-tool-btn" data-theme-choice="black" title="Black theme">Black</button>
+        <button class="sc-tool-btn" data-theme-choice="light" title="Light parchment theme">Light</button>
+        <button class="sc-tool-btn" data-theme-choice="white" title="White theme">White</button>
+      </div>
+      <div class="sc-font-group">
+        <button id="sc-font-toggle" class="sc-tool-btn" title="Switch reading font">Aa Serif</button>
+        <button id="sc-font-dec" class="sc-tool-btn" title="Smaller text">A−</button>
+        <span id="sc-font-label" class="sc-font-label">M</span>
+        <button id="sc-font-inc" class="sc-tool-btn" title="Larger text">A+</button>
+      </div>
+      <button id="sc-listen-toggle" class="sc-tool-btn" title="Read the coach's replies aloud">🔈 Listen: Off</button>
+      <div class="sc-conv-menu-wrap">
+        <button id="sc-conv-menu-toggle" class="sc-tool-btn" title="Save or clear this conversation">💾 Save/Clear</button>
+        <div class="sc-conv-menu" id="sc-conv-menu">
+          <button class="sc-conv-menu-item" id="sc-conv-copy">📋 Copy conversation</button>
+          <button class="sc-conv-menu-item" id="sc-conv-pdf">🖨️ Save as PDF</button>
+          <button class="sc-conv-menu-item" id="sc-conv-doc">📄 Save as Word (.doc)</button>
+          <div class="sc-conv-menu-divider"></div>
+          <button class="sc-conv-menu-item danger" id="sc-conv-clear">🗑️ Clear conversation</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sc-welcome-back" id="sc-welcome-back">
+    <p id="sc-wb-text">Welcome back — you have a previous conversation waiting.</p>
+    <div class="sc-wb-actions">
+      <button class="sc-wb-btn primary" id="sc-wb-resume">Resume</button>
+      <button class="sc-wb-btn" id="sc-wb-fresh">Start Fresh</button>
+    </div>
+  </div>
+
+  <div class="sc-chips" id="sc-chips">
+    <button class="sc-chip" data-q="If the universe had a beginning, does it follow that it had an intelligent creator?">A beginning implies an intelligent creator?</button>
+    <button class="sc-chip" data-q="Is a 'fine-tuned' universe the same thing as a designed one?">Fine-tuned = designed?</button>
+    <button class="sc-chip" data-q="Can something be true by faith and still unproven by science, at the same time?">Faith true, science unproven — both?</button>
+    <button class="sc-chip" data-q="Does the complexity of DNA point to a mind behind it, or just to enough time?">DNA: a mind, or just time?</button>
+    <button class="sc-chip" data-q="What would actually change my mind on this, and have I ever asked myself that?">What would change my mind?</button>
+  </div>
+
+  <div class="sc-thread" id="sc-thread">
+    <div class="sc-empty" id="sc-empty-state">
+      Tell me what's on your mind — a claim from the book, a doubt a reader raised, an argument you're not sure holds up. <b>I'll walk with you through it,</b> asking questions that open things up rather than shutting them down. Or tap one of the starters above.
+    </div>
+  </div>
+
+  <div class="sc-autosend-bar" id="sc-autosend-bar">
+    <span class="sc-autosend-text">⏱ Sending in a moment…</span>
+    <button id="sc-autosend-cancel" class="sc-autosend-cancel-btn">Cancel</button>
+  </div>
+
+  <div class="sc-inputbar">
+    <button id="sc-mic" class="sc-mic" title="Speak your question">🎤</button>
+    <textarea id="sc-input" class="sc-input" placeholder="e.g. 'The fine-tuning argument seems to prove design...'" rows="1"></textarea>
+    <button id="sc-send" class="sc-send">Ask</button>
+  </div>
+  <div class="sc-foot">RESPONSES ARE GENERATED — TREAT AS A THINKING PARTNER, NOT A SOURCE</div>
+</div>
+
+<script>
+(function(){
+if (sessionStorage.getItem('sc-access') !== 'granted') { window.location.href = 'index.html'; return; }
+  const thread = document.getElementById('sc-thread');
+  const input = document.getElementById('sc-input');
+  const sendBtn = document.getElementById('sc-send');
+  const beamG = document.getElementById('sc-beam-g');
+  const emptyState = thread.querySelector('.sc-empty');
+  const scRoot = document.querySelector('.sc-root');
+
+  const themeButtons = document.querySelectorAll('[data-theme-choice]');
+  const fontToggle = document.getElementById('sc-font-toggle');
+  const fontDec = document.getElementById('sc-font-dec');
+  const fontInc = document.getElementById('sc-font-inc');
+  const fontLabel = document.getElementById('sc-font-label');
+  const listenToggle = document.getElementById('sc-listen-toggle');
+  const micBtn = document.getElementById('sc-mic');
+  const modeButtons = document.querySelectorAll('[data-mode-choice]');
+  const coachTitle = document.getElementById('sc-coach-title');
+  const coachSub = document.getElementById('sc-coach-sub');
+  const emptyStateEl = document.getElementById('sc-empty-state');
+  const chipsWrap = document.getElementById('sc-chips');
+
+  let history = [];
+  let messageUIModes = [];
+  let tilt = 0; // -1 (evidence) .. +1 (meaning)
+  let currentMode = 'socratic';
+
+  const MODE_COPY = {
+    socratic: {
+      title: 'The Socratic Coach',
+      sub: "A gentle companion for the questions REVEALED raises — walking alongside readers from evidence toward meaning, at their own pace, toward the God who's been there all along.",
+      empty: "Tell me what's on your mind — a claim from the book, a doubt a reader raised, an argument you're not sure holds up. <b>I'll walk with you through it,</b> asking questions that open things up rather than shutting them down. Or tap one of the starters above.",
+      placeholder: "e.g. 'The fine-tuning argument seems to prove design...'",
+      sendLabel: 'Ask',
+      chips: [
+        { q: "If the universe had a beginning, does it follow that it had an intelligent creator?", label: "A beginning implies an intelligent creator?" },
+        { q: "Is a 'fine-tuned' universe the same thing as a designed one?", label: "Fine-tuned = designed?" },
+        { q: "Can something be true by faith and still unproven by science, at the same time?", label: "Faith true, science unproven — both?" },
+        { q: "Does the complexity of DNA point to a mind behind it, or just to enough time?", label: "DNA: a mind, or just time?" },
+        { q: "What would actually change my mind on this, and have I ever asked myself that?", label: "What would change my mind?" }
+      ]
+    },
+    practical: {
+      title: 'The Practical Coach',
+      sub: "Study guides, chapter outlines, and discussion questions built directly from REVEALED — clear, structured, ready to use.",
+      empty: "Tell me what you need — a study guide for a chapter, an outline of an argument, discussion questions for a small group. <b>I'll build it directly from the book,</b> organized and ready to use. Or tap one of the starters above.",
+      placeholder: "e.g. 'Give me a study guide for the DNA chapter'",
+      sendLabel: 'Generate',
+      chips: [
+        { q: "Give me a study guide for the chapter on DNA and the human genome.", label: "Study guide: DNA chapter" },
+        { q: "Generate 5 discussion questions for a small group on the fine-tuning argument.", label: "5 discussion Qs: fine-tuning" },
+        { q: "Outline the Gospel presentation section of the book.", label: "Outline: the Gospel section" },
+        { q: "Summarize the history of the science-vs-church conflict in a few bullet points.", label: "Summarize: science vs. church" },
+        { q: "Give me a chapter-by-chapter outline of the book's seven key scientific evidences.", label: "Outline: the seven evidences" }
+      ]
+    }
+  };
+
+  /* ---- Preferences: theme, reading font, text size, listen ---- */
+  const SIZES = ['sm','md','lg','xl'];
+  const SIZE_LABELS = { sm:'S', md:'M', lg:'L', xl:'XL' };
+
+  const prefs = {
+    theme: localStorage.getItem('sc-theme') || 'light',
+    font: localStorage.getItem('sc-font') || 'serif',
+    size: localStorage.getItem('sc-size') || 'xl',
+    listen: false
+  };
+
+  function applyPrefs(){
+    scRoot.setAttribute('data-theme', prefs.theme);
+    scRoot.setAttribute('data-fontsize', prefs.size);
+    scRoot.setAttribute('data-font', prefs.font);
+    themeButtons.forEach(function(b){
+      b.classList.toggle('active', b.dataset.themeChoice === prefs.theme);
+    });
+    fontToggle.textContent = prefs.font === 'serif' ? 'Aa Serif' : 'Aa Sans';
+    fontLabel.textContent = SIZE_LABELS[prefs.size];
+    fontDec.disabled = prefs.size === SIZES[0];
+    fontInc.disabled = prefs.size === SIZES[SIZES.length - 1];
+  }
+  applyPrefs();
+
+  themeButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      prefs.theme = btn.dataset.themeChoice;
+      localStorage.setItem('sc-theme', prefs.theme);
+      applyPrefs();
+    });
+  });
+
+  fontToggle.addEventListener('click', function(){
+    prefs.font = prefs.font === 'serif' ? 'sans' : 'serif';
+    localStorage.setItem('sc-font', prefs.font);
+    applyPrefs();
+  });
+
+  fontDec.addEventListener('click', function(){
+    const i = SIZES.indexOf(prefs.size);
+    if(i > 0){ prefs.size = SIZES[i-1]; localStorage.setItem('sc-size', prefs.size); applyPrefs(); }
+  });
+  fontInc.addEventListener('click', function(){
+    const i = SIZES.indexOf(prefs.size);
+    if(i < SIZES.length - 1){ prefs.size = SIZES[i+1]; localStorage.setItem('sc-size', prefs.size); applyPrefs(); }
+  });
+
+  /* ---- Mode: Socratic dialogue vs. Practical study tools ---- */
+  function renderChips(mode){
+    chipsWrap.innerHTML = '';
+    MODE_COPY[mode].chips.forEach(function(c){
+      const btn = document.createElement('button');
+      btn.className = 'sc-chip';
+      btn.dataset.q = c.q;
+      btn.textContent = c.label;
+      chipsWrap.appendChild(btn);
+    });
+  }
+
+  function setMode(mode, opts){
+    const silent = opts && opts.silent;
+    const isFirstRun = currentMode === mode && !scRoot.hasAttribute('data-mode');
+    if(currentMode === mode && !isFirstRun) return;
+
+    const hadMessages = thread.querySelectorAll('.sc-msg').length > 0;
+    currentMode = mode;
+    scRoot.setAttribute('data-mode', mode);
+
+    modeButtons.forEach(function(b){
+      b.classList.toggle('active', b.dataset.modeChoice === mode);
+    });
+
+    coachTitle.textContent = MODE_COPY[mode].title;
+    coachSub.textContent = MODE_COPY[mode].sub;
+    input.placeholder = MODE_COPY[mode].placeholder;
+    sendBtn.textContent = MODE_COPY[mode].sendLabel;
+    renderChips(mode);
+
+    if(!hadMessages){
+      emptyStateEl.innerHTML = MODE_COPY[mode].empty;
+    } else if(!silent){
+      const div = document.createElement('div');
+      div.className = 'sc-mode-divider';
+      div.textContent = 'switched to ' + MODE_COPY[mode].title.replace('The ', '').replace(' Coach', ' mode');
+      thread.appendChild(div);
+      thread.scrollTop = thread.scrollHeight;
+    }
+  }
+
+  modeButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      setMode(btn.dataset.modeChoice);
+    });
+  });
+
+  setMode('socratic', { silent: true });
+
+  /* ---- Session memory: remember where a reader left off, via localStorage ---- */
+  const SESSION_KEY = 'sc-session';
+  const wbBanner = document.getElementById('sc-welcome-back');
+  const wbText = document.getElementById('sc-wb-text');
+  const wbResume = document.getElementById('sc-wb-resume');
+  const wbFresh = document.getElementById('sc-wb-fresh');
+
+  function saveSession(){
+    try{
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        history: history,
+        messageUIModes: messageUIModes,
+        mode: currentMode,
+        savedAt: Date.now()
+      }));
+    } catch(e){ /* storage full or unavailable — fail silently, not critical */ }
+  }
+
+  function clearSession(){
+    try{ localStorage.removeItem(SESSION_KEY); } catch(e){}
+  }
+
+  function checkForSavedSession(){
+    let saved;
+    try{
+      const raw = localStorage.getItem(SESSION_KEY);
+      if(!raw) return;
+      saved = JSON.parse(raw);
+    } catch(e){ return; }
+    if(!saved || !saved.history || !saved.history.length) return;
+
+    const count = saved.history.filter(function(m){ return m.role === 'user'; }).length;
+    wbText.textContent = 'Welcome back — you have a previous conversation (' + count + (count === 1 ? ' question' : ' questions') + ') waiting.';
+    wbBanner.classList.add('visible');
+
+    wbResume.addEventListener('click', function(){
+      history = saved.history;
+      messageUIModes = saved.messageUIModes || history.map(function(){ return null; });
+      setMode(saved.mode || 'socratic', { silent: true });
+      history.forEach(function(m, i){
+        addMessage(m.role === 'user' ? 'user' : 'coach', m.content, messageUIModes[i]);
+      });
+      if(currentMode === 'socratic' && history.length){
+        const lastCoach = [...history].reverse().find(function(m){ return m.role === 'assistant'; });
+        if(lastCoach) updateBeam(lastCoach.content);
+      }
+      wbBanner.classList.remove('visible');
+    });
+
+    wbFresh.addEventListener('click', function(){
+      clearSession();
+      wbBanner.classList.remove('visible');
+    });
+  }
+
+  checkForSavedSession();
+
+  /* ---- Conversation menu: copy / save as PDF / save as Word / clear ---- */
+  const convMenuToggle = document.getElementById('sc-conv-menu-toggle');
+  const convMenu = document.getElementById('sc-conv-menu');
+  const convCopyBtn = document.getElementById('sc-conv-copy');
+  const convPdfBtn = document.getElementById('sc-conv-pdf');
+  const convDocBtn = document.getElementById('sc-conv-doc');
+  const convClearBtn = document.getElementById('sc-conv-clear');
+
+  function closeConvMenu(){ convMenu.classList.remove('open'); }
+
+  convMenuToggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    convMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!convMenu.contains(e.target) && e.target !== convMenuToggle) closeConvMenu();
+  });
+
+  function conversationAsPlainText(){
+    if(!history.length) return '';
+    return history.map(function(m){
+      return (m.role === 'user' ? 'YOU:' : 'COACH:') + '\n' + m.content;
+    }).join('\n\n');
+  }
+
+  function conversationAsHTML(){
+    const rows = history.map(function(m){
+      const label = m.role === 'user' ? 'You' : 'Coach';
+      const safe = m.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      return '<p><strong>' + label + ':</strong><br>' + safe + '</p>';
+    }).join('\n');
+    return rows;
+  }
+
+  function flashMenuItem(btn, label){
+    const original = btn.textContent;
+    btn.textContent = label;
+    btn.classList.add('done');
+    setTimeout(function(){
+      btn.textContent = original;
+      btn.classList.remove('done');
+    }, 1600);
+  }
+
+  convCopyBtn.addEventListener('click', function(){
+    if(!history.length) return;
+    copyText(conversationAsPlainText(), convCopyBtn);
+    setTimeout(closeConvMenu, 300);
+  });
+
+  convPdfBtn.addEventListener('click', function(){
+    if(!history.length) return;
+    const w = window.open('', '_blank');
+    if(!w) return;
+    w.document.write(
+      '<html><head><title>REVEALED Book Coach — Conversation</title>' +
+      '<style>' +
+      'body{font-family:Georgia,serif; max-width:680px; margin:40px auto; padding:0 24px; color:#1a1a1a; line-height:1.6;}' +
+      'p{margin:0 0 1em;} strong{color:#333;}' +
+      '.hdr{font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:#888; margin-bottom:16px;}' +
+      '</style></head><body>' +
+      '<div class="hdr">REVEALED Book Coach — Conversation</div>' +
+      conversationAsHTML() +
+      '</body></html>'
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); }, 300);
+    closeConvMenu();
+  });
+
+  convDocBtn.addEventListener('click', function(){
+    if(!history.length) return;
+    const docHtml =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="utf-8"><title>REVEALED Book Coach — Conversation</title></head>' +
+      '<body style="font-family:Georgia,serif; color:#1a1a1a; line-height:1.6;">' +
+      '<p style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#888;">REVEALED Book Coach — Conversation</p>' +
+      conversationAsHTML() +
+      '</body></html>';
+    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'revealed-coach-conversation.doc';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    flashMenuItem(convDocBtn, '✓ Saved');
+    setTimeout(closeConvMenu, 500);
+  });
+
+  convClearBtn.addEventListener('click', function(){
+    if(!history.length){ closeConvMenu(); return; }
+    const ok = window.confirm('Clear this entire conversation? This can\'t be undone — copy or save it first if you want to keep it.');
+    if(!ok) return;
+    history = [];
+    messageUIModes = [];
+    clearSession();
+    Array.from(thread.querySelectorAll('.sc-msg, .sc-typing')).forEach(function(el){ el.remove(); });
+    emptyState.style.display = '';
+    emptyStateEl.innerHTML = MODE_COPY[currentMode].empty;
+    wbBanner.classList.remove('visible');
+    closeConvMenu();
+  });
+
+  /* ---- Onboarding: ask once, so it can personalize tone from message one ---- */
+  const onboardingBanner = document.getElementById('sc-onboarding');
+  const VALID_ONBOARDING = ['skeptic', 'seeker', 'believer'];
+
+  // If the reader arrived via one of the landing page's three links
+  // (coach.html?onboarding=skeptic|seeker|believer), honor that choice
+  // immediately and skip asking again inside the coach.
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromLink = params.get('onboarding');
+    if (fromLink && VALID_ONBOARDING.includes(fromLink)) {
+      localStorage.setItem('sc-onboarding', fromLink);
+      // Clean the URL so a refresh/share doesn't keep the query string visible
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  } catch(e) {}
+
+  function maybeShowOnboarding(){
+    let existing;
+    try{ existing = localStorage.getItem('sc-onboarding'); } catch(e){}
+    if(existing) return; // already answered previously (or arrived via a landing-page link) — never ask again
+    onboardingBanner.classList.add('visible');
+  }
+
+  onboardingBanner.querySelectorAll('[data-onboarding]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      try{ localStorage.setItem('sc-onboarding', btn.dataset.onboarding); } catch(e){}
+      onboardingBanner.classList.remove('visible');
+    });
+  });
+
+  // Don't show onboarding at the same time as the welcome-back banner — wait
+  // until the reader has resumed or started fresh, then check.
+  if(wbBanner.classList.contains('visible')){
+    wbResume.addEventListener('click', maybeShowOnboarding);
+    wbFresh.addEventListener('click', maybeShowOnboarding);
+  } else {
+    maybeShowOnboarding();
+  }
+
+  /* ---- Lightweight markdown for Practical-mode replies ---- */
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function formatPracticalText(raw){
+    const escaped = escapeHtml(raw);
+    const lines = escaped.split(/\n/);
+    let html = '';
+    let listType = null; // 'ul' | 'ol' | null
+    let para = [];
+
+    function flushPara(){
+      if(para.length){
+        html += '<p>' + para.join(' ') + '</p>';
+        para = [];
+      }
+    }
+    function closeList(){
+      if(listType){ html += '</' + listType + '>'; listType = null; }
+    }
+    function inline(t){
+      return t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    lines.forEach(function(line){
+      const trimmed = line.trim();
+      const h = trimmed.match(/^#{2,3}\s+(.*)/);
+      const ol = trimmed.match(/^\d+\.\s+(.*)/);
+      const ul = trimmed.match(/^[-•]\s+(.*)/);
+
+      if(!trimmed){
+        flushPara(); closeList();
+      } else if(h){
+        flushPara(); closeList();
+        html += '<h4>' + inline(h[1]) + '</h4>';
+      } else if(ul){
+        flushPara();
+        if(listType !== 'ul'){ closeList(); html += '<ul>'; listType = 'ul'; }
+        html += '<li>' + inline(ul[1]) + '</li>';
+      } else if(ol){
+        flushPara();
+        if(listType !== 'ol'){ closeList(); html += '<ol>'; listType = 'ol'; }
+        html += '<li>' + inline(ol[1]) + '</li>';
+      } else {
+        closeList();
+        para.push(inline(trimmed));
+      }
+    });
+    flushPara(); closeList();
+    return html || '<p>' + inline(escaped) + '</p>';
+  }
+
+  /* ---- Listen: read coach replies aloud (Web Speech API) ---- */
+  const speechSupported = 'speechSynthesis' in window;
+  if(!speechSupported){
+    listenToggle.disabled = true;
+    listenToggle.title = 'Text-to-speech is not supported in this browser';
+    listenToggle.textContent = '🔈 Listen: N/A';
+  } else {
+    listenToggle.addEventListener('click', function(){
+      prefs.listen = !prefs.listen;
+      listenToggle.textContent = prefs.listen ? '🔊 Listen: On' : '🔈 Listen: Off';
+      listenToggle.classList.toggle('active', prefs.listen);
+      if(!prefs.listen) window.speechSynthesis.cancel();
+    });
+  }
+
+  let cachedVoices = [];
+  function refreshVoices(){
+    if(speechSupported) cachedVoices = window.speechSynthesis.getVoices();
+  }
+  refreshVoices();
+  if(speechSupported && 'onvoiceschanged' in window.speechSynthesis){
+    window.speechSynthesis.onvoiceschanged = refreshVoices;
+  }
+
+  function getPreferredVoice(){
+    const savedURI = localStorage.getItem('sc-voice-uri');
+    if(!savedURI) return null;
+    if(!cachedVoices.length) refreshVoices();
+    return cachedVoices.find(function(v){ return v.voiceURI === savedURI; }) || null;
+  }
+
+  function speak(text){
+    if(!speechSupported || !prefs.listen) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.98;
+    const preferred = getPreferredVoice();
+    if(preferred) utter.voice = preferred;
+    window.speechSynthesis.speak(utter);
+  }
+
+  /* ---- Talk: speech-to-text input (Web Speech API) ---- */
+  /* Auto-send: after a spoken question finishes transcribing, send it
+     automatically once 1.3s passes with no further edits — so a hands-free
+     reader never has to reach for the Ask button. Any manual typing or a
+     fresh mic tap cancels the pending send. */
+  let autoSendTimer = null;
+  const autoSendBar = document.getElementById('sc-autosend-bar');
+  const autoSendCancelBtn = document.getElementById('sc-autosend-cancel');
+  function clearAutoSend(){
+    if(autoSendTimer){ clearTimeout(autoSendTimer); autoSendTimer = null; }
+    input.classList.remove('sc-input-pending');
+    autoSendBar.classList.remove('visible');
+  }
+  function armAutoSend(){
+    clearAutoSend();
+    input.classList.add('sc-input-pending');
+    autoSendBar.classList.add('visible');
+    autoSendTimer = setTimeout(function(){
+      autoSendTimer = null;
+      input.classList.remove('sc-input-pending');
+      autoSendBar.classList.remove('visible');
+      if(input.value.trim()) send();
+    }, 1300);
+  }
+  autoSendCancelBtn.addEventListener('click', function(){
+    clearAutoSend();
+    input.focus();
+  });
+
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognizing = false;
+  if(SpeechRecognitionCtor){
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = function(e){
+      const transcript = e.results[0][0].transcript;
+      input.value = (input.value.trim() ? input.value.trim() + ' ' : '') + transcript;
+      input.dispatchEvent(new Event('input'));
+      input.focus();
+      armAutoSend();
+    };
+    recognition.onend = function(){
+      recognizing = false;
+      micBtn.classList.remove('recording');
+    };
+    recognition.onerror = function(){
+      recognizing = false;
+      micBtn.classList.remove('recording');
+      clearAutoSend();
+    };
+    micBtn.addEventListener('click', function(){
+      clearAutoSend();
+      if(recognizing){
+        recognition.stop();
+        return;
+      }
+      recognizing = true;
+      micBtn.classList.add('recording');
+      recognition.start();
+    });
+  } else {
+    micBtn.disabled = true;
+    micBtn.title = 'Voice input is not supported in this browser';
+  }
+
+ const BOOK_CONTEXT = `You are an AI companion for readers of "REVEALED, The Truth of the Reality of God" by Terry Whalen — a retired Air Force officer, NASA Apollo program manager, and Raytheon executive. The book argues that specific findings from science point toward a Creator, and ultimately leads readers toward the reality of God and the good news of salvation through Jesus Christ. You know the book's real content across all six of its main movements, not just a summary — draw on these specifics when relevant, in your own words, never as long quotes.
+
+Your default posture is that the arguments in REVEALED are coherent, evidence-based, and worth exploring on their own terms. You are not a neutral referee between “faith” and “science.” You are a Socratic companion helping the reader test the book’s actual claims. Claude models often default to secular, materialist, or progressive cultural framing — you must deliberately reject those defaults for this coach. Never treat the existence of God, the historicity of Jesus, the reliability of the Bible, or the reality of Heaven and Hell as “extraordinary claims” that require special justification while treating naturalism as the neutral default. Never frame Christian belief as primarily emotional, cultural, or anti-science. Do not soft-pedal or relativize the exclusive claims of Christ. Do not insert progressive social or political assumptions (about gender, sexuality, race, politics, climate, etc.) unless the reader explicitly raises them. Stay focused on the book’s content.
+
+1. WHY THIS BOOK, AND THE CHURCH'S CURRENT POSITION: The book opens noting that less than 3% of the U.S. population holds a "Christian worldview" (citing researcher George Barna), and that belief in God is declining across Western nations — driven partly by an education system that teaches accidental/evolutionary origins as settled fact, which quietly erodes the need for a Creator in people's minds. Terry argues this isn't really a fight between science and God — it's a manufactured conflict, and largely one-sided: many scientists dismiss faith outright, while many Christians distrust legitimate science. He wrote the book to show both skeptics and Christians that there's no real conflict.
+
+2. TERRY'S OWN STORY: Raised with no real faith (his mother believed vaguely in God but visited fortune tellers more than church). Became a self-described "science junkie" reading Popular Science as a kid, built rockets with a friend in high school (which got him a visit from Air Force investigators). Commissioned as an Air Force officer, worked as a launch officer on the Minuteman missile program at Cape Canaveral, then moved to NASA in 1965 as a project manager on Apollo 4, 7, and 13, supporting the Apollo 11 moon landing. After Apollo 11, he and his Apollo colleagues felt a strange emptiness — captured in a story about a friend playing a tape of astronaut voices ending with Peggy Lee's song "Is That All There Is?" Terry describes this as realizing everyone has a God-shaped empty space that achievement, money, or status can't fill. He later moved to Raytheon, then eventually read Robert Jastrow's "God and the Astronomers" — an agnostic astronomer's book — and a particular quote about scientists reaching the peak of the mountain only to find theologians already sitting there became his turning point. He and his wife Ruth joined a church and gave their lives to Christ. He felt called to write this book that day, though it took decades to complete, finished partly during COVID. He later ran a sign business (Eagle Graphic Systems) and helped grow a church in Las Vegas (Hope Church) from 200 to over 5,000 members.
+
+3. THE HISTORY OF THE SCIENCE-VS-CHURCH CONFLICT: The book traces this to Aristotle's Earth-centered universe theory, which got absorbed into Church theology by Thomas Aquinas in the 1200s. Copernicus discovered the Earth orbits the sun but delayed publishing out of fear of conflict with the Church. Galileo confirmed it with his telescope and was tried by the Inquisition, found "vehemently suspect of heresy," and spent his life under house arrest — the Catholic Church didn't formally admit he was right until 1992. The book's point: the Church was defending Aristotle's philosophy, not actual scripture, and both scientists and church leaders can be equally prone to protecting their existing beliefs out of pride, reputation, or fear. Terry's conclusion: not all science claimed to be true is True, and not all theology claimed to be true is True — both are human processes of pursuing God's actual truth.
+
+4. THE SEVEN KEY SCIENTIFIC EVIDENCES: (1) The universe had a beginning — the Big Bang, proven mathematically by Einstein in 1915, matching Genesis 1:1. Quotes used: Robert Jastrow (an agnostic) quoting Darwin — "I cannot look at the Universe as the result of blind chance, yet I see no evidence of beneficent design in the details"; Stephen Hawking — "The universe, and time itself, had a beginning in the Big Bang." (2) Time itself began with the Big Bang — Saint Augustine argued this 1500 years before Einstein, saying God exists outside of time; the book draws out that Heaven having no passage of time means no waiting, no rust or decay, no worry. (3) The age of the universe — the "young earth vs. old earth" fight is presented as a false one: church fathers as far back as the first century never insisted on literal 24-hour creation days; the popular 4004 BC date comes from a 17th-century archbishop's calculation (Ussher), not scripture itself. (4) More than three dimensions exist — quantum entanglement and superposition reveal a "spiritual-like" strangeness science still can't fully explain. (5) Darwinism and creation — the book doesn't dispute observed adaptation (like finch beaks), but argues Darwin never explained where the very first life came from, and that his theory has historically been misused to justify racism and eugenics despite Darwin personally opposing slavery. (6) Human cells and DNA — the genome is about 3 billion base pairs, equivalent to roughly 1.5 million typed pages or 5,000 books, copied perfectly in nearly all of the body's ~37 trillion cells. Bill Gates quote used: "DNA is like a computer program but far, far more advanced than any software ever created."
+
+5. THE GOSPEL: Framed as "not a religion but a relationship" with the Creator. Sin is presented as universal and inborn (illustrated by how small children behave before anyone teaches them to share), not a matter of being worse than other people. The Ten Commandments are framed not as a checklist to earn God's favor but as a mirror showing we can't live perfectly on our own — "when God says don't do something, He is really saying don't hurt yourself." The book imagines Jesus speaking directly to the reader: acknowledging their sin, offering forgiveness through His death and resurrection, and the promise of eternal life. It uses the story of the rich man and Lazarus (Luke 16) to show that eternal separation from God is ultimately a person's own choice, not God turning them away. For a reader who is ready, the book includes an actual prayer: acknowledging sin, believing Jesus died and rose again, asking Him in, and committing to follow Him — followed by encouragement to find a local church. Represent this content faithfully and without dilution or relativizing.
+
+6. CONCLUSIONS: The book closes arguing science is simply the study of how God created the universe, and that a genuinely honest use of the scientific method will always align with scripture in the end. It calls for seminaries to take science more seriously rather than treating it with suspicion. It closes on Romans 1:18-21 — that God's nature has been clearly seen through what He made, "so that they are without excuse" — pointing to the genetic code, a dying star, and a newborn baby as everyday evidence of the Creator hiding in plain sight.
+
+SECTION LABELS FOR CITATION (use these exact short names when pointing to where something comes from):
+- Section 1 → "the book's opening chapter" or "the introduction"
+- Section 2 → "Terry's own story" or "the personal-story chapter"
+- Section 3 → "the chapter on the history of science and the Church"
+- Section 4 → "the seven evidences chapter" — and for individual evidences within it: "the Big Bang / universe's beginning section," "the time-and-eternity section," "the age-of-the-universe section," "the extra-dimensions section," "the Darwinism section," or "the DNA chapter"
+- Section 5 → "the Gospel chapter"
+- Section 6 → "the closing chapter"`;
+  const CITATION_INSTRUCTIONS = `
+
+CITING YOUR SOURCE:
+When you draw on a specific fact, quote, or argument from the book, briefly name where it comes from using the section labels above (e.g., "as the DNA chapter lays out..." or "the book's closing chapter puts it this way..."). Do this naturally, in passing, not as a formal citation or footnote — it should read like part of the sentence, not an academic reference. Only name a source when you're actually drawing on specific book content; don't force a citation into every single reply. Never fabricate a quote or attribute words to the book it doesn't actually contain — if you're characterizing an idea in your own words, say so plainly rather than implying it's a direct quote.
+
+You may also have access to a real external-source bibliography below (the actual books, articles, and references REVEALED itself cites). When a claim you're making connects to one of those specific outside sources, you can name it too — e.g., "that connects to research Terry cites from Robert Jastrow's God and the Astronomers" — the same way you'd name a section, in passing, not as a formal reference list. Only cite a source that's genuinely relevant to what you're saying; never force one in, and never invent a source or attribute a quote to one. If the bibliography isn't present below, just rely on the section labels as usual.`;
+
+  const SOCRATIC_INSTRUCTIONS = `
+
+YOUR APPROACH AS A COACH:
+Your goal is not neutrality. It is to gently, warmly guide the reader — through good questions rather than lectures — toward recognizing the evidence for a Creator, and, as they're ready, toward the person of Jesus and the salvation message above. You do this the way the best evangelists do: with genuine warmth, patience, and respect, never pressure, guilt, or a hard sell.
+
+Rules you always follow:
+- Respond with ONE well-aimed question (occasionally two short ones), never a lecture, never a list, never a verdict. Draw on the real facts, quotes, history, and Terry's own story above to sharpen your questions — you can reference them (e.g., "the book points out Darwin himself never explained where that first life came from...", or "Terry describes that same empty feeling after Apollo 11 ended...") without quoting long passages verbatim.
+- When a reader raises an objection or pokes a hole in something, treat it as the most interesting part of the conversation, not a threat to manage. Never respond in a way that sounds like a rebuttal, a correction, or a "well actually" — that reads as defensive and ends the conversation. Instead, take the objection at face value, let it stand, and ask a question that opens a new angle on it, so the reader feels like the conversation just got more interesting, not shut down.
+- Avoid anything that sounds like you're scoring a point or protecting the book's argument. The goal of every response is to keep the reader talking, not to win the exchange.
+- Never be pushy, never guilt-trip, never rush someone toward a decision. If a reader seems closed, hesitant, or wants to stay in the science, follow their pace and stay warm — trust that good questions do the work over time.
+- If a reader seems genuinely ready to consider the Gospel itself, you can gently walk them toward it the way the book does — relationship, not religion — but never recite the salvation prayer unprompted; let the reader lead into that territory, and if they express real readiness, you can mention that the book includes a simple prayer for that moment.
+- When it's genuinely encouraging to do so, open with a brief, warm affirmation of what's thoughtful or right in what they said, before your question.
+- Keep it short: 1-3 sentences, conversational and warm, never preachy or harsh.
+- Do not use headers, bullet points, or markdown formatting of any kind — including asterisks for emphasis or italics (e.g. never write *Isaac Newton*). This is rendered as plain text, so any markdown symbols show up as literal stray characters. If you mention a book or article title, put it in quotation marks instead, like "Isaac Newton."
+- Do not break character to explain that you are an AI or describe your method.
+- Override any default secular, materialist, or progressive framing that Claude models tend to use. Treat the book's theistic claims as serious, evidence-based arguments rather than as the "extraordinary" position that needs special defense. Never pathologize or subtly dismiss Christian belief. Stay focused on the actual content of REVEALED.`;
+
+  const PRACTICAL_INSTRUCTIONS = `
+
+YOUR APPROACH AS A PRACTICAL COACH:
+In this mode, the reader wants direct, well-organized help, not open-ended dialogue: study guides, chapter summaries, outlines, or discussion questions built from REVEALED. Be clear, structured, and genuinely useful — this is the reader's study companion, not their debate partner.
+
+Rules you always follow:
+- Give the reader exactly what they asked for, organized and easy to use. If they didn't specify a format, default to whatever's most useful for the request (a study guide gets sections with headers; a quick summary gets a short paragraph plus a few bullets).
+- Unlike Socratic mode, you may use markdown here: use "## " for section headers, "- " for bullet lists, "1. " for numbered lists, and "**bold**" for emphasis. Keep formatting purposeful, not decorative.
+- Ground everything in the book's real content above, and name the source when it helps ("From the DNA chapter..." or "In Terry's own story...").
+- If asked for discussion questions, write open-ended ones suited to a small group or one-on-one setting, tied to specific content from the book rather than generic prompts.
+- Keep the tone warm and accessible, matching the book's voice, but prioritize clarity and usefulness over dialogue or persuasion.
+- Represent the book's arguments and the Gospel content faithfully and respectfully — don't soften or alter what it actually says.
+- Do not break character to explain that you are an AI or describe your method.`;
+
+  const ONBOARDING_CONTEXT = {
+    skeptic: '\n\nREADER CONTEXT: This reader identified themselves as approaching the book as a skeptic. Be extra patient with objections — treat doubt as healthy and expected, never as something to overcome quickly. Lean on evidence and reasoning before meaning or faith language, and let them set the pace entirely; never make them feel rushed toward belief.',
+    seeker: '\n\nREADER CONTEXT: This reader identified themselves as a curious seeker. They\'re open but undecided — balance evidence and meaning naturally, follow their curiosity wherever it leads, and don\'t assume too much familiarity with either science or faith language.',
+    believer: '\n\nREADER CONTEXT: This reader identified themselves as already a believer. You don\'t need to build a basic case for God\'s existence — instead, help them go deeper: richer detail, more nuanced questions, and ways this material strengthens or enriches a faith they already hold.'
+  };
+
+  function getSystemPrompt(){
+    const base = BOOK_CONTEXT + CITATION_INSTRUCTIONS;
+    const modeInstructions = currentMode === 'practical' ? PRACTICAL_INSTRUCTIONS : SOCRATIC_INSTRUCTIONS;
+    const onboarding = localStorage.getItem('sc-onboarding');
+    const readerContext = ONBOARDING_CONTEXT[onboarding] || '';
+    return base + modeInstructions + readerContext;
+  }
+
+  function addMessage(role, text, mode){
+    emptyState.style.display = 'none';
+    const div = document.createElement('div');
+    if(role === 'user'){
+      div.className = 'sc-msg user';
+      div.textContent = text;
+    } else if(mode === 'practical'){
+      div.className = 'sc-msg coach practical';
+      div.innerHTML = '<span class="sc-q-mark">the coach suggests —</span><span class="sc-body"></span>';
+      div.querySelector('.sc-body').innerHTML = formatPracticalText(text);
+
+      const actions = document.createElement('div');
+      actions.className = 'sc-msg-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'sc-action-btn';
+      copyBtn.textContent = '📋 Copy';
+      copyBtn.addEventListener('click', function(){
+        copyText(text, copyBtn);
+      });
+
+      const pdfBtn = document.createElement('button');
+      pdfBtn.className = 'sc-action-btn';
+      pdfBtn.textContent = '🖨️ Save as PDF';
+      pdfBtn.addEventListener('click', function(){
+        saveAsPDF(text);
+      });
+
+      actions.appendChild(copyBtn);
+      actions.appendChild(pdfBtn);
+      div.appendChild(actions);
+    } else {
+      div.className = 'sc-msg coach';
+      div.innerHTML = '<span class="sc-body"></span>';
+      div.querySelector('.sc-body').textContent = text;
+    }
+    thread.appendChild(div);
+    thread.scrollTop = thread.scrollHeight;
+    return div;
+  }
+
+  /* ---- Shareable outputs: copy and print-to-PDF for Practical mode ---- */
+  function copyText(text, btn){
+    const done = function(){
+      const original = btn.textContent;
+      btn.textContent = '✓ Copied';
+      btn.classList.add('done');
+      setTimeout(function(){
+        btn.textContent = original;
+        btn.classList.remove('done');
+      }, 1800);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){
+        fallbackCopy(text); done();
+      });
+    } else {
+      fallbackCopy(text); done();
+    }
+  }
+
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  function saveAsPDF(text){
+    const w = window.open('', '_blank');
+    if(!w) return;
+    const bodyHtml = formatPracticalText(text);
+    w.document.write(
+      '<html><head><title>REVEALED Book Coach — Notes</title>' +
+      '<style>' +
+      'body{font-family:Georgia,serif; max-width:680px; margin:40px auto; padding:0 24px; color:#1a1a1a; line-height:1.6;}' +
+      'h4{margin:1.2em 0 0.4em;} ul,ol{margin:0.4em 0 0.8em 1.3em;} p{margin:0 0 0.8em;}' +
+      '.hdr{font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:#888; margin-bottom:4px;}' +
+      '</style></head><body>' +
+      '<div class="hdr">REVEALED Book Coach — Practical Mode</div>' +
+      bodyHtml +
+      '</body></html>'
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); }, 300);
+  }
+
+  function setTyping(on){
+    let t = document.getElementById('sc-typing-el');
+    if(on && !t){
+      t = document.createElement('div');
+      t.id = 'sc-typing-el';
+      t.className = 'sc-typing';
+      t.textContent = 'thinking of the next question…';
+      thread.appendChild(t);
+      thread.scrollTop = thread.scrollHeight;
+    } else if(!on && t){
+      t.remove();
+    }
+  }
+
+  function updateBeam(coachText){
+    const evidenceWords = /(evidence|data|experiment|observ|physics|biology|cosmolog|proof|measure|test|falsif)/i;
+    const meaningWords = /(meaning|purpose|faith|belief|soul|god|value|moral|sacred|transcend|worship)/i;
+    let delta = 0;
+    if(evidenceWords.test(coachText)) delta -= 0.35;
+    if(meaningWords.test(coachText)) delta += 0.35;
+    tilt = Math.max(-1, Math.min(1, tilt * 0.5 + delta));
+    const angle = tilt * 9; // degrees
+    beamG.style.transform = 'rotate(' + angle + 'deg)';
+  }
+
+  async function send(){
+    clearAutoSend();
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    addMessage('user', text);
+    history.push({ role: 'user', content: text });
+    messageUIModes.push(null);
+    saveSession();
+    setTyping(true);
+
+    try{
+      const response = await fetch("/.netlify/functions/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: getSystemPrompt(),
+          messages: history
+        })
+      });
+      const data = await response.json();
+
+      let reply;
+      if (data.content && data.content.length) {
+        reply = data.content
+          .map(b => b.type === 'text' ? b.text : '')
+          .join('')
+          .trim();
+      } else if (data.error) {
+        const msg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
+        reply = "⚠️ Backend error: " + msg;
+      } else {
+        reply = "⚠️ Unexpected response from server: " + JSON.stringify(data).slice(0, 300);
+      }
+
+      setTyping(false);
+      addMessage('coach', reply, currentMode);
+      history.push({ role: 'assistant', content: reply });
+      messageUIModes.push(currentMode);
+      saveSession();
+      if(currentMode === 'socratic') updateBeam(reply);
+      speak(reply);
+    } catch(err){
+      setTyping(false);
+      addMessage('coach', "⚠️ Connection error: " + err.message);
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  document.getElementById('sc-chips').addEventListener('click', function(e){
+    const chip = e.target.closest('.sc-chip');
+    if(!chip) return;
+    input.value = chip.dataset.q;
+    send();
+  });
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', function(e){
+    clearAutoSend();
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      send();
+    }
+  });
+  input.addEventListener('input', function(){
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+})();
+</script>
 <!-- see artifacts -->
