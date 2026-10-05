@@ -1,2 +1,2 @@
 [functions]
-  included_files = ["netlify/functions/author-notes.txt", "netlify/functions/citations.txt"]
+  included_files = ["netlify/functions/author-notes.txt", "netlify/functions/citations.txt", "netlify/functions/passages/**"]
